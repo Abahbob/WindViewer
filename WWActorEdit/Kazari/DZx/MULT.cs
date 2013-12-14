@@ -35,7 +35,9 @@ namespace WWActorEdit.Kazari.DZx
 
         public int GLID { get; set; }
 
-        public MULT(RARC.FileEntry FE, ref int SrcOffset, TreeNode ParentNode, System.Drawing.Color Color = default(System.Drawing.Color))
+        ZeldaArc ZA;
+
+        public MULT(RARC.FileEntry FE, ref int SrcOffset, TreeNode ParentNode, System.Drawing.Color Color = default(System.Drawing.Color), ZeldaArc ParentZA = null)
         {
             ParentFile = FE;
 
@@ -58,6 +60,8 @@ namespace WWActorEdit.Kazari.DZx
             ParentNode.BackColor = RenderColor;
             ParentNode.Nodes.Add(Node);
 
+            ZA = ParentZA;
+
             GLID = GL.GenLists(1);
             GL.NewList(GLID, ListMode.Compile);
             Helpers.DrawFramedCube(new Vector3d(15, 15, 15));
@@ -68,8 +72,8 @@ namespace WWActorEdit.Kazari.DZx
         {
             byte[] Data = ParentFile.GetFileData();
             
-            Helpers.Overwrite32(ref Data, Offset, BitConverter.ToUInt32(BitConverter.GetBytes(_Translation.X), 0));
-            Helpers.Overwrite32(ref Data, Offset + 0x04, BitConverter.ToUInt32(BitConverter.GetBytes(_Translation.Y), 0));
+            Helpers.Overwrite32(ref Data, Offset, BitConverter.ToUInt32(BitConverter.GetBytes(_Translation.X + ZA.Translation.X), 0));
+            Helpers.Overwrite32(ref Data, Offset + 0x04, BitConverter.ToUInt32(BitConverter.GetBytes(_Translation.Y + ZA.Translation.Z), 0));
             Helpers.Overwrite16(ref Data, Offset + 0x08, (ushort)(_Rotation * 182.04444444444444f));
             Helpers.Overwrite8(ref Data, Offset + 0x0A, _RoomNumber);
             Helpers.Overwrite8(ref Data, Offset + 0x0B, _Unknown2);
@@ -80,7 +84,7 @@ namespace WWActorEdit.Kazari.DZx
         public void Render()
         {
             GL.PushMatrix();
-            GL.Translate(new OpenTK.Vector3(_Translation.X, 0, _Translation.Y));
+            GL.Translate(new OpenTK.Vector3(_Translation.X + ZA.Translation.X , 0, _Translation.Y + ZA.Translation.Z));
             GL.Rotate(_Rotation, 0, 1, 0);
             GL.Color4((Highlight ? System.Drawing.Color.Red : RenderColor));
             if (GL.IsList(GLID) == true) GL.CallList(GLID);

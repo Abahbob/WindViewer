@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
+using System.Drawing.Drawing2D;
 
 namespace WWActorEdit.Kazari
 {
@@ -387,6 +388,19 @@ namespace WWActorEdit.Kazari
             GL.End();
 
             GL.Enable(EnableCap.Texture2D);
+        }
+
+        public static Vector3 RotateAroundCenter(Vector3 Point, Vector3 Center, Vector3 Rotation)
+        {
+            double angleInRadians = Rotation.X * (Math.PI / 180);
+            double cosTheta = Math.Cos(angleInRadians);
+            double sinTheta = Math.Sin(angleInRadians);
+            return new Vector3
+            (
+                    (float)(cosTheta * (Point.X - Center.X) - sinTheta * (Point.Z - Center.Z) + Center.X),
+                    Point.Y,
+                    (float)(sinTheta * (Point.X - Center.X) + cosTheta * (Point.Z - Center.Z) + Center.Z)
+            );
         }
 
         public static TreeNode CreateTreeNode(string Text, object Tag, string Tooltip = "")

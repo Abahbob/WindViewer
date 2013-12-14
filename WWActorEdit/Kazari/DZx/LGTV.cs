@@ -32,7 +32,7 @@ namespace WWActorEdit.Kazari.DZx
 
         public int GLID { get; set; }
 
-        public LGTV(RARC.FileEntry FE, ref int SrcOffset, TreeNode ParentNode, System.Drawing.Color Color = default(System.Drawing.Color))
+        public LGTV(RARC.FileEntry FE, ref int SrcOffset, TreeNode ParentNode, System.Drawing.Color Color = default(System.Drawing.Color), ZeldaArc ParentZA = null)
         {
             ParentFile = FE;
 

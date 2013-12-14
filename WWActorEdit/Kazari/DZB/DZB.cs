@@ -21,9 +21,15 @@ namespace WWActorEdit.Kazari.DZB
         #region Variables
 
         public string Name { get; private set; }
+        public RARC.FileEntry ParentFile { get; set; }
+        public Vector3 Translation;
+        public Vector3 oldTranslation;
+        public Vector3 Rotation;
+        public Vector3 oldRotation;
+        public Vector3 Center;
         byte[] Data;
         FileHeader Header;
-        List<Vertex> Vertices = new List<Vertex>();
+        public List<Vertex> Vertices = new List<Vertex>();
         List<Triangle> Triangles = new List<Triangle>();
         List<Type> Types = new List<Type>();
 
@@ -38,7 +44,24 @@ namespace WWActorEdit.Kazari.DZB
         {
             Root = TN;
             Name = FE.FileName;
+            ParentFile = FE;
             Load(FE.GetFileData());
+        }
+
+        public void ChangeTranslation(Vector3 trans)
+        {
+            Translation = trans;
+            foreach (Vertex V in Vertices) V.Translation = trans;
+        }
+
+        public Vector3 ChangeRotation(Vector3 rot)
+        {
+            Rotation = rot;
+            foreach (Vertex V in Vertices)
+            {
+                V.Rotation = rot;
+            }
+            return Center;
         }
 
         public void Clear()
@@ -54,7 +77,7 @@ namespace WWActorEdit.Kazari.DZB
 
             UInt32 ReadOffset = Header.VertexOffset;
             for (int i = 0; i < Header.VertexCount; i++)
-                Vertices.Add(new Vertex(Data, ref ReadOffset));
+                Vertices.Add(new Vertex(Data, ref ReadOffset, ParentFile));
 
             ReadOffset = Header.TriangleOffset;
             for (int i = 0; i < Header.TriangleCount; i++)
@@ -64,6 +87,30 @@ namespace WWActorEdit.Kazari.DZB
             for (int i = 0; i < Header.TypeCount; i++)
                 Types.Add(new Type(Data, ref ReadOffset));
 
+            //gotta find the center of the room
+            float minX = -1, minY = -1, minZ = -1, maxX = -1, maxY = -1, maxZ = -1;
+            foreach (Vertex V in Vertices)
+            {
+                if (minX == -1) minX = V.Position.X;
+                else if (minX > V.Position.X) minX = V.Position.X;
+
+                if (minY == -1) minY = V.Position.Y;
+                else if (minY > V.Position.Y) minY = V.Position.Y;
+
+                if (minZ == -1) minZ = V.Position.Z;
+                else if (minZ > V.Position.Z) minZ = V.Position.Z;
+
+                if (maxX == -1) maxX = V.Position.X;
+                else if (maxX < V.Position.X) maxX = V.Position.X;
+
+                if (maxY == -1) maxY = V.Position.Y;
+                else if (maxY < V.Position.Y) maxY = V.Position.Y;
+
+                if (maxZ == -1) maxZ = V.Position.Z;
+                else if (maxZ < V.Position.Z) maxZ = V.Position.Z;
+            }
+            Center = new Vector3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+            foreach (Vertex V in Vertices) V.Center = Center;
             Root.Nodes.Add(Helpers.CreateTreeNode(Name, this, string.Format("Size: {0:X6}", Data.Length)));
 
             Prepare();
@@ -71,6 +118,12 @@ namespace WWActorEdit.Kazari.DZB
 
         public void Render()
         {
+            if (Translation != oldTranslation || Rotation != oldRotation)
+            {
+                Prepare();
+                oldRotation = Rotation;
+                oldTranslation = Translation;
+            }
             if (GL.IsList(GLID) == true) GL.CallList(GLID);
         }
 
@@ -100,9 +153,9 @@ namespace WWActorEdit.Kazari.DZB
                 foreach (Triangle Tri in Triangles)
                 {
                     GL.Begin(BeginMode.Triangles);
-                    GL.Vertex3(Vertices[Tri.Vertices[0]].Position);
-                    GL.Vertex3(Vertices[Tri.Vertices[1]].Position);
-                    GL.Vertex3(Vertices[Tri.Vertices[2]].Position);
+                    GL.Vertex3(Helpers.RotateAroundCenter(Vertices[Tri.Vertices[0]].Position, Center, Rotation) + Translation);
+                    GL.Vertex3(Helpers.RotateAroundCenter(Vertices[Tri.Vertices[1]].Position, Center, Rotation) + Translation);
+                    GL.Vertex3(Helpers.RotateAroundCenter(Vertices[Tri.Vertices[2]].Position, Center, Rotation) + Translation);
                     GL.End();
                 }
 
@@ -114,9 +167,9 @@ namespace WWActorEdit.Kazari.DZB
                 foreach (Triangle Tri in Triangles)
                 {
                     GL.Begin(BeginMode.Triangles);
-                    GL.Vertex3(Vertices[Tri.Vertices[0]].Position);
-                    GL.Vertex3(Vertices[Tri.Vertices[1]].Position);
-                    GL.Vertex3(Vertices[Tri.Vertices[2]].Position);
+                    GL.Vertex3(Helpers.RotateAroundCenter(Vertices[Tri.Vertices[0]].Position, Center, Rotation) + Translation);
+                    GL.Vertex3(Helpers.RotateAroundCenter(Vertices[Tri.Vertices[1]].Position, Center, Rotation) + Translation);
+                    GL.Vertex3(Helpers.RotateAroundCenter(Vertices[Tri.Vertices[2]].Position, Center, Rotation) + Translation);
                     GL.End();
                 }
                 GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Fill);
@@ -173,19 +226,42 @@ namespace WWActorEdit.Kazari.DZB
             }
         }
 
-        class Vertex
+        public class Vertex
         {
             public const int Size = 12;
 
-            public Vector3 Position;
+            public Vector3 Position { get { return _Position; } set { _Position = value; } }
 
-            public Vertex(byte[] Data, ref UInt32 Offset)
+            Vector3 _Position;
+
+            public int ThisOffset;
+
+            RARC.FileEntry ParentFile;
+
+            public Vector3 Translation = new Vector3(0, 0, 0);
+            public Vector3 Rotation = new Vector3(0, 0, 0);
+            public Vector3 Center = new Vector3(0, 0, 0);
+
+            public Vertex(byte[] Data, ref UInt32 Offset, RARC.FileEntry FE)
             {
-                Position = new Vector3(
+                ParentFile = FE;
+                ThisOffset = (int)Offset;
+                _Position = new Vector3(
                     Helpers.ConvertIEEE754Float(Helpers.Read32(Data, (int)Offset)),
                     Helpers.ConvertIEEE754Float(Helpers.Read32(Data, (int)Offset + 4)),
                     Helpers.ConvertIEEE754Float(Helpers.Read32(Data, (int)Offset + 8)));
                 Offset += Size;
+            }
+
+            public void StoreChanges()
+            {
+                byte[] Data = ParentFile.GetFileData();
+
+                Helpers.Overwrite32(ref Data, ThisOffset, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(_Position,Center,Rotation).X + Translation.X), 0));
+                Helpers.Overwrite32(ref Data, ThisOffset + 4, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(_Position, Center, Rotation).Y + Translation.Y), 0));
+                Helpers.Overwrite32(ref Data, ThisOffset + 8, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(_Position,Center,Rotation).Z + Translation.Z), 0));
+
+                ParentFile.SetFileData(Data);
             }
 
             public override string ToString()
@@ -250,6 +326,9 @@ namespace WWActorEdit.Kazari.DZB
                 Name = Helpers.ReadString(Data, (int)NameOffset);
 
                 Offset += Size;
+                Console.WriteLine(String.Format(
+    "NameOffset: {0:X8}, Unknown1: {1}, Unknown2: {2:X8}, Unknown3: {3:X8}, Unknown4: {4}, Unknown5: {5:X8}, Unknown6: {6:X8}, Unknown7: {7:X8}, Unknown8: {8:X8}",
+    NameOffset, Unknown1, Unknown2, Unknown3, Unknown4, Unknown5, Unknown6, Unknown7, Unknown8));
             }
 
             public override string ToString()

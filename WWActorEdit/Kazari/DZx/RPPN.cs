@@ -31,7 +31,9 @@ namespace WWActorEdit.Kazari.DZx
 
         public int GLID { get; set; }
 
-        public RPPN(RARC.FileEntry FE, ref int SrcOffset, TreeNode ParentNode, System.Drawing.Color Color = default(System.Drawing.Color))
+        ZeldaArc ZA;
+
+        public RPPN(RARC.FileEntry FE, ref int SrcOffset, TreeNode ParentNode, System.Drawing.Color Color = default(System.Drawing.Color), ZeldaArc ParentZA = null)
         {
             ParentFile = FE;
 
@@ -53,6 +55,8 @@ namespace WWActorEdit.Kazari.DZx
             ParentNode.BackColor = RenderColor;
             ParentNode.Nodes.Add(Node);
 
+            ZA = ParentZA;
+
             GLID = GL.GenLists(1);
             GL.NewList(GLID, ListMode.Compile);
             Helpers.DrawFramedSphere(new Vector3d(0, 0, 0), 25.0f, 10);
@@ -64,9 +68,9 @@ namespace WWActorEdit.Kazari.DZx
             byte[] Data = ParentFile.GetFileData();
 
             Helpers.Overwrite32(ref Data, Offset, _Unknown);
-            Helpers.Overwrite32(ref Data, Offset + 0x04, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.X), 0));
-            Helpers.Overwrite32(ref Data, Offset + 0x08, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.Y), 0));
-            Helpers.Overwrite32(ref Data, Offset + 0x0C, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.Z), 0));
+            Helpers.Overwrite32(ref Data, Offset + 0x04, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.X + ZA.Translation.X), 0));
+            Helpers.Overwrite32(ref Data, Offset + 0x08, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.Y + ZA.Translation.Y), 0));
+            Helpers.Overwrite32(ref Data, Offset + 0x0C, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.Z + ZA.Translation.Z), 0));
 
             ParentFile.SetFileData(Data);
         }
@@ -74,7 +78,7 @@ namespace WWActorEdit.Kazari.DZx
         public void Render()
         {
             GL.PushMatrix();
-            GL.Translate(_Position);
+            GL.Translate(_Position + ZA.Translation);
             GL.Color4((Highlight ? System.Drawing.Color.Red : RenderColor));
             if (GL.IsList(GLID) == true) GL.CallList(GLID);
             GL.PopMatrix();

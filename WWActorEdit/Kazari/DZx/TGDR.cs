@@ -43,6 +43,8 @@ namespace WWActorEdit.Kazari.DZx
 
         public int GLID { get; set; }
 
+        ZeldaArc ZA;
+
         public J3Dx.J3Dx MatchedModel { get; set; }
         public DZB.DZB MatchedCollision { get; set; }
 
@@ -79,6 +81,8 @@ namespace WWActorEdit.Kazari.DZx
             GLID = GL.GenLists(1);
             GL.NewList(GLID, ListMode.Compile);
 
+            ZA = ParentZA;
+
             if (ParentZA != null)
             {
                 MatchedModel = ParentZA.J3Dxs.Find(x => x.FileEntry.FileName.StartsWith(_Name));
@@ -95,9 +99,9 @@ namespace WWActorEdit.Kazari.DZx
 
             Helpers.WriteString(ref Data, Offset, _Name, 8);
             Helpers.Overwrite32(ref Data, Offset + 0x08, _Parameters);
-            Helpers.Overwrite32(ref Data, Offset + 0x0C, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.X), 0));
-            Helpers.Overwrite32(ref Data, Offset + 0x10, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.Y), 0));
-            Helpers.Overwrite32(ref Data, Offset + 0x14, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.Z), 0));
+            Helpers.Overwrite32(ref Data, Offset + 0x0C, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.X + ZA.Translation.X), 0));
+            Helpers.Overwrite32(ref Data, Offset + 0x10, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.Y + ZA.Translation.Y), 0));
+            Helpers.Overwrite32(ref Data, Offset + 0x14, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.Z + ZA.Translation.Z), 0));
             Helpers.Overwrite16(ref Data, Offset + 0x18, _Unknown1);
             Helpers.Overwrite16(ref Data, Offset + 0x1A, (ushort)(_RotationY * 182.04444444444444f));
             Helpers.Overwrite16(ref Data, Offset + 0x1C, _Unknown2);
@@ -110,7 +114,7 @@ namespace WWActorEdit.Kazari.DZx
         public void Render()
         {
             GL.PushMatrix();
-            GL.Translate(_Position);
+            GL.Translate(_Position + ZA.Translation);
             GL.Rotate(_RotationY, 0, 1, 0);
             GL.Color4((Highlight ? System.Drawing.Color.Red : RenderColor));
             if (MatchedModel != null) MatchedModel.Render();

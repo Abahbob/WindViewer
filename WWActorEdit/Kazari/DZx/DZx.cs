@@ -70,7 +70,7 @@ namespace WWActorEdit.Kazari.DZx
             public uint Elements, Offset;
             public object[] Data;
 
-            public FileChunk(RARC.FileEntry FE, ref int SrcOffset, TreeNode ParentNode, ZeldaArc ParentZA = null)
+            public FileChunk(RARC.FileEntry FE, ref int SrcOffset, TreeNode ParentNode, ZeldaArc ParentZA)
             {
                 byte[] SrcData = FE.GetFileData();
 
@@ -90,26 +90,26 @@ namespace WWActorEdit.Kazari.DZx
                         /* Typically in DZR */
                         case "ACTR": Data[i] = new ACTR(FE, ref ReadOffset, NewNode, System.Drawing.Color.GreenYellow, ParentZA); continue;
                         case "TGOB": Data[i] = new ACTR(FE, ref ReadOffset, NewNode, System.Drawing.Color.GreenYellow, ParentZA); continue;
-                        case "PLYR": Data[i] = new ACTR(FE, ref ReadOffset, NewNode, System.Drawing.Color.Orange); continue;
+                        case "PLYR": Data[i] = new ACTR(FE, ref ReadOffset, NewNode, System.Drawing.Color.Orange, ParentZA); continue;
                         case "PPNT":    /* Found in DmSpot0's Stage DZS for some reason... */
-                        case "RPPN": Data[i] = new RPPN(FE, ref ReadOffset, NewNode, System.Drawing.Color.LightSkyBlue); continue;
-                        case "SHIP": Data[i] = new SHIP(FE, ref ReadOffset, NewNode, System.Drawing.Color.BlueViolet); continue;
+                        case "RPPN": Data[i] = new RPPN(FE, ref ReadOffset, NewNode, System.Drawing.Color.LightSkyBlue, ParentZA); continue;
+                        case "SHIP": Data[i] = new SHIP(FE, ref ReadOffset, NewNode, System.Drawing.Color.BlueViolet, ParentZA); continue;
                         case "TGDR":
                         case "DOOR":
                         case "Door": Data[i] = new TGDR(FE, ref ReadOffset, NewNode, System.Drawing.Color.HotPink, ParentZA); continue;
-                        case "LGTV": Data[i] = new LGTV(FE, ref ReadOffset, NewNode, System.Drawing.Color.DarkGray); continue;  /* ????? */
+                        case "LGTV": Data[i] = new LGTV(FE, ref ReadOffset, NewNode, System.Drawing.Color.DarkGray, ParentZA); continue;  /* ????? */
 
                         /* Typically in DZS */
-                        case "MULT": Data[i] = new MULT(FE, ref ReadOffset, NewNode, System.Drawing.Color.LightGray); continue;
-                        case "TRES": Data[i] = new TRES(FE, ref ReadOffset, NewNode, System.Drawing.Color.SaddleBrown); continue;
+                        case "MULT": Data[i] = new MULT(FE, ref ReadOffset, NewNode, System.Drawing.Color.LightGray, ParentZA); continue;
+                        case "TRES": Data[i] = new TRES(FE, ref ReadOffset, NewNode, System.Drawing.Color.SaddleBrown, ParentZA); continue;
                     }
 
                     switch (Tag.Substring(0, 3))
                     {
                         case "ACT": Data[i] = new ACTR(FE, ref ReadOffset, NewNode, System.Drawing.Color.GreenYellow, ParentZA); break;
-                        case "PLY": Data[i] = new ACTR(FE, ref ReadOffset, NewNode, System.Drawing.Color.Orange); break;
+                        case "PLY": Data[i] = new ACTR(FE, ref ReadOffset, NewNode, System.Drawing.Color.Orange, ParentZA); break;
                         case "SCO": Data[i] = new TGDR(FE, ref ReadOffset, NewNode, System.Drawing.Color.Yellow, ParentZA); break;
-                        case "TRE": Data[i] = new TRES(FE, ref ReadOffset, NewNode, System.Drawing.Color.SaddleBrown); break;
+                        case "TRE": Data[i] = new TRES(FE, ref ReadOffset, NewNode, System.Drawing.Color.SaddleBrown, ParentZA); break;
                         default: Data[i] = new Generic(FE, ref ReadOffset, NewNode); NewNode.Tag = Data[i]; break;
                     }
                 }

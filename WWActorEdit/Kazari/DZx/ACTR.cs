@@ -16,6 +16,7 @@ namespace WWActorEdit.Kazari.DZx
         uint _Parameters;
         Vector3 _Position, _Rotation;
         ushort _Unknown;
+        ZeldaArc ZA;
 
         public string Name { get { return _Name; } set { _Name = value; HasChanged = true; } }
         public uint Parameters { get { return _Parameters; } set { _Parameters = value; HasChanged = true; } }
@@ -76,6 +77,7 @@ namespace WWActorEdit.Kazari.DZx
                 MatchedCollision = ParentZA.DZBs.Find(x => x.Name.StartsWith(_Name));
             }
 
+            ZA = ParentZA;
             Helpers.DrawFramedCube(new Vector3d(15, 15, 15));
             GL.EndList();
         }
@@ -86,9 +88,9 @@ namespace WWActorEdit.Kazari.DZx
 
             Helpers.WriteString(ref Data, Offset, _Name, 8);
             Helpers.Overwrite32(ref Data, Offset + 0x08, _Parameters);
-            Helpers.Overwrite32(ref Data, Offset + 0x0C, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.X), 0));
-            Helpers.Overwrite32(ref Data, Offset + 0x10, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.Y), 0));
-            Helpers.Overwrite32(ref Data, Offset + 0x14, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.Z), 0));
+            Helpers.Overwrite32(ref Data, Offset + 0x0C, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.X + ZA.Translation.X), 0));
+            Helpers.Overwrite32(ref Data, Offset + 0x10, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.Y + ZA.Translation.Y), 0));
+            Helpers.Overwrite32(ref Data, Offset + 0x14, BitConverter.ToUInt32(BitConverter.GetBytes(_Position.Z + ZA.Translation.Z), 0));
             Helpers.Overwrite16(ref Data, Offset + 0x18, (ushort)(_Rotation.X * 182.04444444444444f));
             Helpers.Overwrite16(ref Data, Offset + 0x1A, (ushort)(_Rotation.Y * 182.04444444444444f));
             Helpers.Overwrite16(ref Data, Offset + 0x1C, (ushort)(_Rotation.Z * 182.04444444444444f));
@@ -100,7 +102,7 @@ namespace WWActorEdit.Kazari.DZx
         public void Render()
         {
             GL.PushMatrix();
-            GL.Translate(_Position);
+            GL.Translate(_Position + ZA.Translation);
             GL.Rotate(_Rotation.Z, 0, 0, 1);
             GL.Rotate(_Rotation.Y, 0, 1, 0);
             GL.Rotate(_Rotation.X, 1, 0, 0);

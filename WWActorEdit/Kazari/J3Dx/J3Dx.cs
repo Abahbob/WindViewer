@@ -29,6 +29,9 @@ namespace WWActorEdit.Kazari.J3Dx
 
         int NumVertices;
         VertexArrays VtxArrays;
+        VertexArrays _VtxArrays;
+        List<Joint> _Joints;
+        Vector3 Center;
 
         SceneGraph Scene;
         EVP1 EVP1Data;
@@ -42,7 +45,7 @@ namespace WWActorEdit.Kazari.J3Dx
         ANK1 AnimData;
 
         public bool ShowBoundingBoxes = false;
-        public bool ShowSkeleton = false;
+        public bool ShowSkeleton = true;
 
         TreeNode Root;
         int SceneGLID = 0;
@@ -52,11 +55,6 @@ namespace WWActorEdit.Kazari.J3Dx
         #endregion
 
         #region Constructors, J3Dx Loader
-
-        public J3Dx(TreeNode TN)
-        {
-            Root = TN;
-        }
 
         public J3Dx(RARC.FileEntry FE, TreeNode TN)
         {
@@ -115,6 +113,8 @@ namespace WWActorEdit.Kazari.J3Dx
 
                 Root.Nodes.Add(Helpers.CreateTreeNode(Name, this, string.Format("Size: {0:X6}", Data.Length)));
             }
+
+            
         }
 
         #endregion
@@ -347,13 +347,13 @@ namespace WWActorEdit.Kazari.J3Dx
                             if (Fmt.Count == 0)
                             {
                                 VtxArrays.Positions = new Vector3[Data.Length / 2];
-                                for (int i = 0, j = 0; i < (Data.Length / 2); ++i, j += 2)
+                                for (int i = 0, j = 0; i < (NumVertices); ++i, j += 2)
                                     VtxArrays.Positions[i] = new Vector3(Data[j], Data[j + 1], 0.0f);
                             }
                             else if (Fmt.Count == 1)
                             {
                                 VtxArrays.Positions = new Vector3[Data.Length / 3];
-                                for (int i = 0, j = 0; i < (Data.Length / 3); ++i, j += 3)
+                                for (int i = 0, j = 0; i < (NumVertices); ++i, j += 3)
                                     VtxArrays.Positions[i] = new Vector3(Data[j], Data[j + 1], Data[j + 2]);
                             }
                             break;
@@ -913,8 +913,8 @@ namespace WWActorEdit.Kazari.J3Dx
                 GL.Vertex3(NewPoint);
                 GL.End();
 
-                string Message = string.Format("{0}: {1}"/* + "\nT:{2}\nR:{3}\nS:{4}"*/,
-                    Current.Index, Joints[Current.Index].Name/*, Joints[Current.Index].Translation, Joints[Current.Index].Rotation, Joints[Current.Index].Scale*/);
+                string Message = string.Format("{0}: {1}" + "\nT:{2}\nR:{3}\nS:{4}\nU:{5}",
+                    Current.Index, Joints[Current.Index].Name, Joints[Current.Index].Translation, Joints[Current.Index].Rotation, Joints[Current.Index].Scale, Joints[Current.Index].unknown);
 
                 Helpers.PrintText(NewPoint, Color.White, SystemFonts.DialogFont, Message);
             }
@@ -955,7 +955,7 @@ namespace WWActorEdit.Kazari.J3Dx
 
                 if (ShowSkeleton == true)
                     DrawSkeleton(Scene, new Vector3(0.0f, 0.0f, 0.0f));
-                else
+                
                     DrawSceneGraph(Scene, ref MatIndex);
             }
             GL.EndList();
@@ -1371,11 +1371,13 @@ namespace WWActorEdit.Kazari.J3Dx
             public string Tag;
             public UInt32 Size;
             public byte[] Data;
+            public UInt32 Offset;
 
             public FileChunk(byte[] SrcData, ref UInt32 SrcOffset)
             {
                 Tag = Helpers.ReadString(SrcData, (int)SrcOffset, 4);
                 Size = Helpers.Read32(SrcData, (int)SrcOffset + 4);
+                Offset = SrcOffset;
 
                 try
                 {
@@ -1564,6 +1566,10 @@ namespace WWActorEdit.Kazari.J3Dx
 
             public Vector3 Scale, Rotation, Translation, BoundingMin, BoundingMax;
             public Matrix4 Matrix = Matrix4.Identity;
+            public uint offset;
+            public uint unknown; //no idea how this works...always 0, 1 or 2
+            public float unknown2;
+
 
             public string Name = string.Empty;
 
@@ -1571,10 +1577,14 @@ namespace WWActorEdit.Kazari.J3Dx
                 : this(Data, ref Offset)
             {
                 Name = Helpers.ReadString(Data, StringOffset);
+                offset = Offset;
             }
 
             public Joint(byte[] Data, ref UInt32 Offset)
             {
+                offset = Offset;
+                unknown = Helpers.Read16(Data, (int)Offset);
+                unknown2 = Helpers.ConvertIEEE754Float(Helpers.Read32(Data, (int)Offset + 36));
                 Scale = new Vector3(
                     Helpers.ConvertIEEE754Float(Helpers.Read32(Data, (int)Offset + 4)),
                     Helpers.ConvertIEEE754Float(Helpers.Read32(Data, (int)Offset + 8)),
@@ -1602,7 +1612,7 @@ namespace WWActorEdit.Kazari.J3Dx
 
         class Shape
         {
-            UInt32 BatchOffset, BatchAttribsOffset, MatrixTableOffset, PrimitivesOffset, MatrixDataOffset, PacketLocationsOffset;
+            public UInt32 BatchOffset, BatchAttribsOffset, MatrixTableOffset, PrimitivesOffset, MatrixDataOffset, PacketLocationsOffset;
 
             public List<Batch> Batches = new List<Batch>();
 
@@ -2343,6 +2353,107 @@ namespace WWActorEdit.Kazari.J3Dx
         }
 
         #endregion
+
+        #endregion
+
+        #region bleh
+
+        public void ChangeTranslation(Vector3 Translation, float MULTRotation) { ChangeTranslation(Translation, MULTRotation, new Vector3(0,0,0)); }
+        public void ChangeTranslation(Vector3 Translation, float MULTRotation, Vector3 Rotation)
+        {
+            if (VtxArrays != null)
+            {
+                if (_VtxArrays == null) _VtxArrays = VtxArrays;
+                float minX = -1, minY = -1, minZ = -1, maxX = -1, maxY = -1, maxZ = -1;
+                foreach (Vector3 V in _VtxArrays.Positions)
+                {
+                        if (minX == -1) minX = V.X;
+                        else if (minX > V.X) minX = V.X;
+
+                        if (minY == -1) minY = V.Y;
+                        else if (minY > V.Y) minY = V.Y;
+
+                        if (minZ == -1) minZ = V.Z;
+                        else if (minZ > V.Z) minZ = V.Z;
+
+                        if (maxX == -1) maxX = V.X;
+                        else if (maxX < V.X) maxX = V.X;
+
+                        if (maxY == -1) maxY = V.Y;
+                        else if (maxY < V.Y) maxY = V.Y;
+
+                        if (maxZ == -1) maxZ = V.Z;
+                        else if (maxZ < V.Z) maxZ = V.Z;
+                }
+                Center = new Vector3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+                if (_Joints == null) _Joints = Joints;
+                int vertexnumber = 0;
+                FileChunk VtxChunk = Chunks.Find(r => r.Tag.Equals("VTX1"));
+                uint offsetFromChunk;
+                
+                foreach (VertexFormat Fmt in VertexFormats)
+                {
+                    int DataLength = GetVertexArrayLength(VertexFormats.IndexOf(Fmt), VtxChunk.Size);
+                    switch (Fmt.ArrayType)
+                    {
+                        case (UInt32)ArrayTypes.POSITION:
+                            {
+                                offsetFromChunk = Helpers.Read32(VtxChunk.Data, 0xC);
+                                for (int i = 0; i < NumVertices * 12; i += 12)
+                                {
+                                    Helpers.Overwrite32(ref Data, (int)(VtxChunk.Offset + i + offsetFromChunk), BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(_VtxArrays.Positions[vertexnumber], Center, Rotation).X + Helpers.RotateAroundCenter(Translation, new Vector3(0,0,0), new Vector3(MULTRotation,0,0)).X), 0));
+                                    Helpers.Overwrite32(ref Data, (int)(VtxChunk.Offset + i + 4 + offsetFromChunk), BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(_VtxArrays.Positions[vertexnumber], Center, Rotation).Y + Helpers.RotateAroundCenter(Translation, new Vector3(0, 0, 0), new Vector3(MULTRotation, 0, 0)).Y), 0));
+                                    Helpers.Overwrite32(ref Data, (int)(VtxChunk.Offset + i + 8 + offsetFromChunk), BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(_VtxArrays.Positions[vertexnumber], Center, Rotation).Z + Helpers.RotateAroundCenter(Translation, new Vector3(0, 0, 0), new Vector3(-MULTRotation, 0, 0)).Z), 0));
+                                    vertexnumber++;
+                                }
+                                break;
+                            }
+                    } 
+                }
+
+                FileChunk JntChunk = Chunks.Find(r => r.Tag.Equals("JNT1"));
+                offsetFromChunk = Helpers.Read32(JntChunk.Data, 0xC);
+                int fml = 0;
+                foreach (Joint j in _Joints)
+                { 
+                    if (j.unknown == 0)
+                    {
+                        Helpers.Overwrite32(ref Data, (int)JntChunk.Offset + 24 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(j.Translation, Center, Rotation).X + Translation.X), 0));
+                        Helpers.Overwrite32(ref Data, (int)JntChunk.Offset + 28 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(j.Translation, Center, Rotation).Y + Translation.Y), 0));
+                        Helpers.Overwrite32(ref Data, (int)JntChunk.Offset + 32 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(j.Translation, Center, Rotation).Z + Translation.Z), 0));
+                    }
+                     
+                    Helpers.Overwrite32(ref Data, (int)JntChunk.Offset + 40 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(j.BoundingMin, Center, Rotation).X + Translation.X), 0));
+                    Helpers.Overwrite32(ref Data, (int)JntChunk.Offset + 44 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(j.BoundingMin, Center, Rotation).Y + Translation.Y), 0));
+                    Helpers.Overwrite32(ref Data, (int)JntChunk.Offset + 48 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(j.BoundingMin, Center, Rotation).Z + Translation.Z), 0));
+
+                    Helpers.Overwrite32(ref Data, (int)JntChunk.Offset + 52 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(j.BoundingMax, Center, Rotation).X + Translation.X), 0));
+                    Helpers.Overwrite32(ref Data, (int)JntChunk.Offset + 56 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(j.BoundingMax, Center, Rotation).Y + Translation.Y), 0));
+                    Helpers.Overwrite32(ref Data, (int)JntChunk.Offset + 60 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(j.BoundingMax, Center, Rotation).Z + Translation.Z), 0));
+                    fml += 64;
+                }
+
+                FileChunk ShpChunk = Chunks.Find(r => r.Tag.Equals("SHP1"));
+                offsetFromChunk = ShapeData.BatchOffset;
+                fml = 0;
+                foreach (Shape.Batch b in ShapeData.Batches)
+                {
+                    Helpers.Overwrite32(ref Data, (int)ShpChunk.Offset + 16 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(b.BoundingMin, Center, Rotation).X + Translation.X), 0));
+                    Helpers.Overwrite32(ref Data, (int)ShpChunk.Offset + 20 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(b.BoundingMin, Center, Rotation).Y + Translation.Y), 0));
+                    Helpers.Overwrite32(ref Data, (int)ShpChunk.Offset + 24 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(b.BoundingMin, Center, Rotation).Z + Translation.Z), 0));
+
+                    Helpers.Overwrite32(ref Data, (int)ShpChunk.Offset + 28 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(b.BoundingMax, Center, Rotation).X + Translation.X), 0));
+                    Helpers.Overwrite32(ref Data, (int)ShpChunk.Offset + 32 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(b.BoundingMax, Center, Rotation).Y + Translation.Y), 0));
+                    Helpers.Overwrite32(ref Data, (int)ShpChunk.Offset + 36 + (int)offsetFromChunk + fml, BitConverter.ToUInt32(BitConverter.GetBytes(Helpers.RotateAroundCenter(b.BoundingMax, Center, Rotation).Z + Translation.Z), 0));
+                    fml += 40;
+                }
+            }
+        }
+
+        public void StoreChanges()
+        {
+            FileEntry.SetFileData(Data);
+        }
 
         #endregion
 
