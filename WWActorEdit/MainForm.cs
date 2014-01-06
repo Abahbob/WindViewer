@@ -93,6 +93,8 @@ namespace WWActorEdit
                     foreach (ZeldaArc A in Rooms)
                     {
                         GL.PushMatrix();
+                        GetGlobalTranslation(A);
+                        GetGlobalRotation(A);
                         /* WRONG! */
                         /*
                         foreach (DZx D in A.DZRs)
@@ -112,8 +114,6 @@ namespace WWActorEdit
                         */
                         foreach (J3Dx M in A.J3Dxs)
                         {
-                            GetGlobalTranslation(A);
-                            GetGlobalRotation(A);
                             /* Got model translation from Stage? (ex. rooms in sea) */
                             if (A.GlobalTranslation != Vector3.Zero || A.GlobalRotation != 0.0f)
                             {
